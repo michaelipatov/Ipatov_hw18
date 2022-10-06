@@ -1,46 +1,72 @@
-# основной файл приложения. здесь конфигурируется фласк, сервисы, SQLAlchemy и все остальное что требуется для приложения.
-# этот файл часто является точкой входа в приложение
+from flask import Flask
+from flask_restx import Api
+from config import Config
+from dao.model.director import Director
+from dao.model.genre import Genre
+from dao.model.movie import Movie
+from setup_db import db
+from data import data
 
-# Пример
+from views.director_view import director_ns
+from views.genre_view import genre_ns
+from views.movie_view import movie_ns
 
-# from flask import Flask
-# from flask_restx import Api
-#
-# from config import Config
-# from models import Review, Book
-# from setup_db import db
-# from views.books import book_ns
-# from views.reviews import review_ns
-#
-# функция создания основного объекта app
-# def create_app(config_object):
-#     app = Flask(__name__)
-#     app.config.from_object(config_object)
-#     register_extensions(app)
-#     return app
-#
-#
-# функция подключения расширений (Flask-SQLAlchemy, Flask-RESTx, ...)
-# def register_extensions(app):
-#     db.init_app(app)
-#     api = Api(app)
-#     api.add_namespace(...)
-#     create_data(app, db)
-#
-#
-# функция
-# def create_data(app, db):
-#     with app.app_context():
-#         db.create_all()
-#
-#         создать несколько сущностей чтобы добавить их в БД
-#
-#         with db.session.begin():
-#             db.session.add_all(здесь список созданных объектов)
-#
-#
-# app = create_app(Config())
-# app.debug = True
-#
-# if __name__ == '__main__':
-#     app.run(host="localhost", port=10001, debug=True)
+data = data
+
+
+def create_app(config):
+    app = Flask(__name__)
+    app.config.from_object(config)
+    register_extensions(app)
+    return app
+
+
+def register_extensions(app):
+    db.init_app(app)
+    api = Api(app)
+    api.add_namespace(movie_ns)
+    api.add_namespace(director_ns)
+    api.add_namespace(genre_ns)
+    create_data(app, db, data)
+
+
+def create_data(app, db, data):
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        for movie in data["movies"]:
+            m = Movie(
+                id=movie["pk"],
+                title=movie["title"],
+                description=movie["description"],
+                trailer=movie["trailer"],
+                year=movie["year"],
+                rating=movie["rating"],
+                genre_id=movie["genre_id"],
+                director_id=movie["director_id"],
+            )
+            with db.session.begin():
+                db.session.add(m)
+
+        for director in data["directors"]:
+            d = Director(
+                id=director["pk"],
+                name=director["name"],
+            )
+            with db.session.begin():
+                db.session.add(d)
+
+        for genre in data["genres"]:
+            d = Genre(
+                id=genre["pk"],
+                name=genre["name"],
+            )
+            with db.session.begin():
+                db.session.add(d)
+
+
+app = create_app(Config())
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
